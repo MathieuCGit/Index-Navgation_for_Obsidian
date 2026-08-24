@@ -1,6 +1,6 @@
 {
-  "id": "bold-index-sidebar",
-  "name": "Bold Index Navigation",
+  "id": "index-navigation",
+  "name": "Index Navigation",
   "version": "1.0.0",
   "minAppVersion": "0.15.0",
   "description": "Index interactif des mots en gras pour la note active dans la sidebar.",
