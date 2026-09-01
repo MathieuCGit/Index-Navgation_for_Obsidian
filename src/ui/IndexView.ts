@@ -45,6 +45,11 @@ export class IndexView {
     onSortChange?: IndexSortChangeCallback
   ): void {
     container.empty();
+    container.style.display = 'flex';
+    container.style.flexDirection = 'column';
+    container.style.height = '100%';
+    container.style.minHeight = '0';
+
     container.createEl('h4', { text: title });
 
     // The controls are grouped in one compact toolbar so the sidebar uses space efficiently while
@@ -314,7 +319,14 @@ export class IndexView {
 
     // The result container is kept separate so the code can rerender only the list when the query
     // changes instead of recreating a large part of the whole panel each time.
+    // We keep the controls fixed at the top and let only this scrollable area move, which makes the
+    // sidebar easier to browse when the result list becomes long.
     const resultsContainer = container.createEl('div');
+    resultsContainer.style.flex = '1 1 auto';
+    resultsContainer.style.minHeight = '0';
+    resultsContainer.style.overflowY = 'auto';
+    resultsContainer.style.overflowX = 'hidden';
+    resultsContainer.style.paddingBottom = '8px';
 
     const renderEntries = (query: string): void => {
       // First filter entries by selected modes (AND logic for combined formatting).
