@@ -1,20 +1,21 @@
-// A single highlighted occurrence in the current note.
+// A single formatted occurrence in the current note.
 // This model is intentionally small and lightweight because it is reused both by the
 // sidebar UI and by the markdown export routine. Each match retains the original textual
 // value, the byte offset inside the file, the line number used for navigation, and the
-// format mode (bold, italic, highlight, or quoted) so the sidebar can apply the correct styling.
-export type BoldOccurrence = {
+// format modes (bold, italic, highlight, quoted, or combinations like italic+quoted)
+// so the sidebar can apply the correct styling and filtering.
+export type FormattedOccurrence = {
   term: string;
   offset: number;
   line: number;
-  mode: FormatMode;
+  modes: FormatMode[];
 };
 
 // One normalized entry in the index. The same term can appear several times in the same file,
 // so we group all of its occurrences under a single bucket and keep them ordered from top to bottom.
 export type BoldIndexEntry = {
   term: string;
-  occurrences: BoldOccurrence[];
+  occurrences: FormattedOccurrence[];
 };
 
 // The plugin supports four content styles. The selected format modes determine which
@@ -72,6 +73,29 @@ export function filterBoldIndexEntries(entries: BoldIndexEntry[], query: string)
   return entries.filter((entry) => entry.term.toLowerCase().includes(normalizedQuery));
 }
 
+// Filters entries by selected format modes using AND logic.
+// An entry is included only if it has at least one occurrence that contains ALL selected modes.
+// This enables finding terms with combined formatting like italic+quoted: _«text»_ or «_text_»
+//
+// Examples:
+// - Selected modes: ['bold'] → includes entries with bold occurrences
+// - Selected modes: ['italic', 'quoted'] → includes entries with at least one occurrence that is both italic AND quoted
+// - Selected modes: ['bold', 'italic', 'quoted'] → requires all three modes in a single occurrence
+export function filterByFormattingModes(entries: BoldIndexEntry[], selectedModes: FormatMode[]): BoldIndexEntry[] {
+  // If no modes selected (shouldn't happen due to UI logic), return all entries
+  if (selectedModes.length === 0) {
+    return entries;
+  }
+
+  return entries.filter((entry) => {
+    // An entry passes the filter if it has at least one occurrence that contains ALL selected modes
+    return entry.occurrences.some((occurrence) => {
+      // Check if this occurrence's modes contain all selected modes (subset check)
+      return selectedModes.every((mode) => occurrence.modes.includes(mode));
+    });
+  });
+}
+
 // Creates the markdown export document for the selected note.
 // This function is deliberately simple and deterministic: it converts the index into a
 // readable bullet list where each item contains the term itself and the line numbers where
@@ -108,6 +132,51 @@ const FORMAT_PATTERNS: Record<FormatMode, RegExp[]> = {
   quoted: [/«(.*?)»/g]
 };
 
+// Helper function to detect all formatting modes applied to a given raw match.
+// Example: the raw match "_«text»_" should return ['italic', 'quoted'] because it is wrapped
+// in both italic markers and quotation marks. Testing only the stripped inner text fails for
+// nested combinations, because the italics markers are outside the quoted segment and are not
+// visible once we trim the match down to the interior content.
+function detectFormattingModes(rawMatchText: string, availableModes: FormatMode[]): FormatMode[] {
+  const detectedModes: FormatMode[] = [];
+
+  for (const mode of availableModes) {
+    const patterns = FORMAT_PATTERNS[mode] ?? [];
+
+    for (const pattern of patterns) {
+      pattern.lastIndex = 0;
+      const match = pattern.exec(rawMatchText);
+
+      // The mode is considered active if the raw text itself is wrapped by that marker pattern.
+      // This works for nested cases like "_«text»_", where the outer italic markers are on the
+      // complete raw match while the inner quotes are a separate nested format.
+      if (match) {
+        detectedModes.push(mode);
+        break;
+      }
+    }
+  }
+
+  return detectedModes;
+}
+
+// Removes the outer markdown wrappers from a raw formatted match so nested formats canonicalize
+// to the same underlying term. For example, "_«text»_" and "«text»" both normalize to "text".
+function normalizeFormattedTerm(rawMatchText: string): string {
+  let normalized = rawMatchText.trim();
+  let previous = '';
+
+  while (normalized !== previous) {
+    previous = normalized;
+    normalized = normalized
+      .replace(/^(\*\*|__|==|_|\*|«)+/, '')
+      .replace(/(\*\*|__|==|_|\*|»|«)+$/, '')
+      .trim();
+  }
+
+  return normalized;
+}
+
 // Builds a sorted index of all formatted terms present in the markdown content.
 // The parser walks the document, filters out code artifacts, groups repeated occurrences,
 // and returns a stable alphabetical structure that the sidebar UI can render and the export
@@ -127,10 +196,10 @@ export function buildBoldIndex(content: string, modes: FormatMode[] = ['bold']):
 
   // A helper function that answers whether a given offset lies inside one of the ignored ranges.
   const isIgnored = (pos: number) => ignoreRanges.some(([start, end]) => pos >= start && pos < end);
-  const grouped = new Map<string, BoldOccurrence[]>();
+  const grouped = new Map<string, FormattedOccurrence[]>();
 
-  // Process each format mode to track which mode each occurrence belongs to.
-  // This allows the sidebar to apply the correct visual styling for each term.
+  // Process each format mode to track which modes each occurrence has.
+  // This allows detecting combined formatting like italic+quoted (_«text»_)
   const activeModes = modes.length > 0 ? modes : ['bold'];
 
   for (const mode of activeModes) {
@@ -145,14 +214,25 @@ export function buildBoldIndex(content: string, modes: FormatMode[] = ['bold']):
         const offset = match.index;
         if (isIgnored(offset)) continue;
 
-        const term = (match[1] ?? '').trim();
+        const rawMatchText = match[0];
+        const term = normalizeFormattedTerm(rawMatchText);
         if (!term) continue;
+
+        // Detect all formatting modes that apply to the full wrapped match.
+        // Example: the raw match "_«text»_" includes both the outer underscore italics and the
+        // inner French quotes, so we must inspect the complete match instead of the stripped term.
+        const detectedModes = detectFormattingModes(rawMatchText, activeModes);
+
+        // Always include the current mode that was found via this pattern.
+        if (!detectedModes.includes(mode)) {
+          detectedModes.push(mode);
+        }
 
         // Determine the line number from the content preceding the match. This value is later
         // used to create clickable references in the sidebar UI.
         const line = content.slice(0, offset).split('\n').length;
         const list = grouped.get(term) ?? [];
-        list.push({ term, offset, line, mode });
+        list.push({ term, offset, line, modes: [...new Set(detectedModes)] });
         grouped.set(term, list);
       }
     }

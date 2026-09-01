@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { buildBoldIndex, buildMarkdownIndexDocument, filterBoldIndexEntries, FormatMode } from '../../src/domain/markdownIndex';
 
-// Helper function to create test occurrences with mode information
-const occurrence = (term: string, offset: number, line: number, mode: FormatMode = 'bold') => ({
+// Helper function to create test occurrences with modes array
+const occurrence = (term: string, offset: number, line: number, ...modes: FormatMode[]) => ({
   term,
   offset,
   line,
-  mode
+  modes: modes.length > 0 ? modes : ['bold']
 });
 
 // This suite covers the core parsing and filtering behavior of the bold index.

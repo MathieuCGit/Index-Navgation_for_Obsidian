@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { buildBoldIndex, FormatMode } from '../../src/domain/markdownIndex';
 
-// Helper function to create test occurrences with mode information
-const occurrence = (term: string, offset: number, line: number, mode: FormatMode = 'bold') => ({
+// Helper function to create test occurrences with modes array
+const occurrence = (term: string, offset: number, line: number, ...modes: FormatMode[]) => ({
   term,
   offset,
   line,
-  mode
+  modes: modes.length > 0 ? modes : ['bold']
 });
 
 // This suite verifies the core parsing logic of the bold index builder.
@@ -162,6 +162,24 @@ describe('buildBoldIndex', () => {
       {
         term: 'QuotedTwo',
         occurrences: [occurrence('QuotedTwo', 56, 2, 'quoted')]
+      }
+    ]);
+  });
+
+  // Nested formats such as italic + quoted must be detected on the full wrapped match, not only on the inner text.
+  it('detects italic + quoted combinations when the italic markers wrap the quotation marks', () => {
+    const content = '_« we built the sound track from that sound out. We built the music as we built the picture. »_';
+
+    expect(buildBoldIndex(content, ['italic', 'quoted'])).toEqual([
+      {
+        term: 'we built the sound track from that sound out. We built the music as we built the picture.',
+        occurrences: [occurrence(
+          'we built the sound track from that sound out. We built the music as we built the picture.',
+          0,
+          1,
+          'italic',
+          'quoted'
+        )]
       }
     ]);
   });

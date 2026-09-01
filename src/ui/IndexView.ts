@@ -1,4 +1,4 @@
-import { ALL_FORMAT_MODES, BoldIndexEntry, filterBoldIndexEntries, FormatMode, ALL_SORT_MODES, SortMode, sortBoldIndexEntries } from '../domain/markdownIndex';
+import { ALL_FORMAT_MODES, BoldIndexEntry, filterBoldIndexEntries, filterByFormattingModes, FormatMode, ALL_SORT_MODES, SortMode, sortBoldIndexEntries } from '../domain/markdownIndex';
 
 // This callback is invoked when the user clicks one of the line numbers displayed next to a term.
 // The offset is the exact position in the markdown document, and the length is used to select the
@@ -317,9 +317,11 @@ export class IndexView {
     const resultsContainer = container.createEl('div');
 
     const renderEntries = (query: string): void => {
-      // First filter entries based on the search query, then apply the selected sort mode.
-      const filteredEntries = filterBoldIndexEntries(entries, query);
-      const sortedEntries = sortBoldIndexEntries(filteredEntries, selectedSort);
+      // First filter entries by selected modes (AND logic for combined formatting).
+      // Then filter by search query, and finally apply the selected sort mode.
+      const modeFilteredEntries = filterByFormattingModes(entries, selectedModes);
+      const queryFilteredEntries = filterBoldIndexEntries(modeFilteredEntries, query);
+      const sortedEntries = sortBoldIndexEntries(queryFilteredEntries, selectedSort);
       resultsContainer.empty();
 
       if (entries.length === 0) {
@@ -327,7 +329,7 @@ export class IndexView {
         return;
       }
 
-      if (filteredEntries.length === 0) {
+      if (sortedEntries.length === 0) {
         this.renderEmpty(resultsContainer, 'Aucun résultat.');
         return;
       }
@@ -347,24 +349,34 @@ export class IndexView {
         item.style.gap = '8px';
 
         const term = item.createEl('span', { text: entry.term, cls: 'bold-index-term' });
-        // Determine the formatting style based on the mode of the first occurrence.
-        // If a term appears in multiple modes, we apply the formatting of its first occurrence.
-        const firstMode = entry.occurrences[0]?.mode ?? 'bold';
+        // Determine the formatting styles based on the modes of the first occurrence.
+        // Multiple modes can apply (e.g., italic+quoted for _«text»_), so we apply all of them.
+        const firstModes = entry.occurrences[0]?.modes ?? ['bold'];
         
         // Apply visual formatting that matches the markdown semantics:
         // - bold mode: bold text (fontWeight)
         // - italic mode: italic text (fontStyle)
         // - highlight mode: background highlight color
         // - quoted mode: normal text (quotation marks are usually implied by the extraction)
-        if (firstMode === 'bold') {
-          term.style.fontWeight = '700';
-        } else if (firstMode === 'italic') {
-          term.style.fontStyle = 'italic';
-        } else if (firstMode === 'highlight') {
+        // When multiple modes apply, we combine their visual effects.
+        let hasHighlight = false;
+        
+        for (const mode of firstModes) {
+          if (mode === 'bold') {
+            term.style.fontWeight = '700';
+          } else if (mode === 'italic') {
+            term.style.fontStyle = 'italic';
+          } else if (mode === 'highlight') {
+            hasHighlight = true;
+          }
+          // For 'quoted' mode, we keep the text normal (no special styling needed)
+        }
+        
+        // Apply highlight styling if present
+        if (hasHighlight) {
           term.style.backgroundColor = 'var(--text-highlight-bg)';
           term.style.padding = '0 2px';
         }
-        // For 'quoted' mode, we keep the text normal without special styling
         
         // Allow term to wrap to next line if sidebar is narrow
         term.style.wordBreak = 'break-word';
