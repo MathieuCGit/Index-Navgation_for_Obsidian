@@ -1,11 +1,13 @@
 // A single highlighted occurrence in the current note.
 // This model is intentionally small and lightweight because it is reused both by the
 // sidebar UI and by the markdown export routine. Each match retains the original textual
-// value, the byte offset inside the file, and the line number used for navigation.
+// value, the byte offset inside the file, the line number used for navigation, and the
+// format mode (bold, italic, highlight, or quoted) so the sidebar can apply the correct styling.
 export type BoldOccurrence = {
   term: string;
   offset: number;
   line: number;
+  mode: FormatMode;
 };
 
 // One normalized entry in the index. The same term can appear several times in the same file,
@@ -127,27 +129,32 @@ export function buildBoldIndex(content: string, modes: FormatMode[] = ['bold']):
   const isIgnored = (pos: number) => ignoreRanges.some(([start, end]) => pos >= start && pos < end);
   const grouped = new Map<string, BoldOccurrence[]>();
 
-  const selectedPatterns = (modes.length > 0 ? modes : ['bold'])
-    .flatMap((mode) => FORMAT_PATTERNS[mode] ?? []);
+  // Process each format mode to track which mode each occurrence belongs to.
+  // This allows the sidebar to apply the correct visual styling for each term.
+  const activeModes = modes.length > 0 ? modes : ['bold'];
 
-  for (const pattern of selectedPatterns) {
-    pattern.lastIndex = 0;
+  for (const mode of activeModes) {
+    const patterns = FORMAT_PATTERNS[mode] ?? [];
+    
+    for (const pattern of patterns) {
+      pattern.lastIndex = 0;
 
-    for (const match of content.matchAll(pattern)) {
-      if (typeof match.index !== 'number') continue;
+      for (const match of content.matchAll(pattern)) {
+        if (typeof match.index !== 'number') continue;
 
-      const offset = match.index;
-      if (isIgnored(offset)) continue;
+        const offset = match.index;
+        if (isIgnored(offset)) continue;
 
-      const term = (match[1] ?? '').trim();
-      if (!term) continue;
+        const term = (match[1] ?? '').trim();
+        if (!term) continue;
 
-      // Determine the line number from the content preceding the match. This value is later
-      // used to create clickable references in the sidebar UI.
-      const line = content.slice(0, offset).split('\n').length;
-      const list = grouped.get(term) ?? [];
-      list.push({ term, offset, line });
-      grouped.set(term, list);
+        // Determine the line number from the content preceding the match. This value is later
+        // used to create clickable references in the sidebar UI.
+        const line = content.slice(0, offset).split('\n').length;
+        const list = grouped.get(term) ?? [];
+        list.push({ term, offset, line, mode });
+        grouped.set(term, list);
+      }
     }
   }
 

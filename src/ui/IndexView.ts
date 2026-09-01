@@ -340,11 +340,49 @@ export class IndexView {
       sortedEntries.forEach((entry) => {
         const item = list.createEl('li');
         item.style.marginBottom = '6px';
+        // Use flex layout to allow proper line wrapping of terms and line numbers
+        item.style.display = 'flex';
+        item.style.flexWrap = 'wrap';
+        item.style.alignItems = 'flex-start';
+        item.style.gap = '8px';
 
         const term = item.createEl('span', { text: entry.term, cls: 'bold-index-term' });
-        term.style.marginRight = '8px';
+        // Determine the formatting style based on the mode of the first occurrence.
+        // If a term appears in multiple modes, we apply the formatting of its first occurrence.
+        const firstMode = entry.occurrences[0]?.mode ?? 'bold';
+        
+        // Apply visual formatting that matches the markdown semantics:
+        // - bold mode: bold text (fontWeight)
+        // - italic mode: italic text (fontStyle)
+        // - highlight mode: background highlight color
+        // - quoted mode: normal text (quotation marks are usually implied by the extraction)
+        if (firstMode === 'bold') {
+          term.style.fontWeight = '700';
+        } else if (firstMode === 'italic') {
+          term.style.fontStyle = 'italic';
+        } else if (firstMode === 'highlight') {
+          term.style.backgroundColor = 'var(--text-highlight-bg)';
+          term.style.padding = '0 2px';
+        }
+        // For 'quoted' mode, we keep the text normal without special styling
+        
+        // Allow term to wrap to next line if sidebar is narrow
+        term.style.wordBreak = 'break-word';
+        term.style.overflowWrap = 'break-word';
 
-        const lines = item.createEl('span', { cls: 'bold-index-lines' });
+        // Line numbers container using flex with wrapping for responsive multi-line display.
+        // This container dynamically wraps line numbers based on available sidebar width:
+        // - When sidebar is wide: line numbers can fit on one line
+        // - When sidebar is narrow: line numbers wrap to multiple lines
+        // - Fully responsive without fixed widths or media queries
+        const lines = item.createEl('div', { cls: 'bold-index-lines' });
+        lines.style.display = 'flex';
+        lines.style.flexWrap = 'wrap';
+        lines.style.alignItems = 'center';
+        lines.style.gap = '6px';
+        lines.style.flex = '1';
+        lines.style.minWidth = '0';
+
         entry.occurrences.forEach((occurrence, index) => {
           const line = lines.createEl('span', {
             text: String(occurrence.line),
@@ -354,7 +392,7 @@ export class IndexView {
           line.style.cursor = 'pointer';
           line.style.color = 'var(--text-accent)';
           line.style.textDecoration = 'underline';
-          line.style.marginRight = '6px';
+          line.style.whiteSpace = 'nowrap';
 
           // Each line number acts as a clickable anchor in the note. When selected, it jumps to the
           // exact text range matching the emphasis pattern in the editor, which makes the sidebar
@@ -365,9 +403,12 @@ export class IndexView {
             onNavigate(occurrence.offset, length);
           });
 
+          // Add separator commas between line numbers (but not after the last one)
           if (index < entry.occurrences.length - 1) {
             const separator = lines.createEl('span', { text: ',' });
-            separator.style.marginRight = '6px';
+            separator.style.color = 'var(--text-normal)';
+            separator.style.whiteSpace = 'nowrap';
+            separator.style.lineHeight = '1';
           }
         });
       });

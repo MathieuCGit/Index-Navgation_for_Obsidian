@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { buildBoldIndex } from '../../src/domain/markdownIndex';
+import { buildBoldIndex, FormatMode } from '../../src/domain/markdownIndex';
+
+// Helper function to create test occurrences with mode information
+const occurrence = (term: string, offset: number, line: number, mode: FormatMode = 'bold') => ({
+  term,
+  offset,
+  line,
+  mode
+});
 
 // This suite verifies the core parsing logic of the bold index builder.
 // It covers the main cases we need to preserve while editing the markdown parser.
@@ -13,13 +21,13 @@ describe('buildBoldIndex', () => {
       {
         term: 'Alpha',
         occurrences: [
-          { term: 'Alpha', offset: 8, line: 2 },
-          { term: 'Alpha', offset: 40, line: 3 }
+          occurrence('Alpha', 8, 2, 'bold'),
+          occurrence('Alpha', 40, 3, 'bold')
         ]
       },
       {
         term: 'Beta',
-        occurrences: [{ term: 'Beta', offset: 27, line: 3 }]
+        occurrences: [occurrence('Beta', 27, 3, 'bold')]
       }
     ]);
   });
@@ -46,8 +54,8 @@ describe('buildBoldIndex', () => {
       {
         term: 'Same',
         occurrences: [
-          { term: 'Same', offset: 0, line: 1 },
-          { term: 'Same', offset: 48, line: 2 }
+          occurrence('Same', 0, 1, 'bold'),
+          occurrence('Same', 48, 2, 'bold')
         ]
       }
     ]);
@@ -59,27 +67,27 @@ describe('buildBoldIndex', () => {
     expect(buildBoldIndex(content, ['bold', 'italic', 'highlight'])).toEqual([
       {
         term: 'Bold',
-        occurrences: [{ term: 'Bold', offset: 0, line: 1 }]
+        occurrences: [occurrence('Bold', 0, 1, 'bold')]
       },
       {
         term: 'BoldTwo',
-        occurrences: [{ term: 'BoldTwo', offset: 40, line: 2 }]
+        occurrences: [occurrence('BoldTwo', 40, 2, 'bold')]
       },
       {
         term: 'Highlight',
-        occurrences: [{ term: 'Highlight', offset: 26, line: 1 }]
+        occurrences: [occurrence('Highlight', 26, 1, 'highlight')]
       },
       {
         term: 'HighlightTwo',
-        occurrences: [{ term: 'HighlightTwo', offset: 72, line: 2 }]
+        occurrences: [occurrence('HighlightTwo', 72, 2, 'highlight')]
       },
       {
         term: 'Italic',
-        occurrences: [{ term: 'Italic', offset: 13, line: 1 }]
+        occurrences: [occurrence('Italic', 13, 1, 'italic')]
       },
       {
         term: 'ItalicTwo',
-        occurrences: [{ term: 'ItalicTwo', offset: 56, line: 2 }]
+        occurrences: [occurrence('ItalicTwo', 56, 2, 'italic')]
       }
     ]);
   });
@@ -93,13 +101,13 @@ describe('buildBoldIndex', () => {
       {
         term: 'Alpha',
         occurrences: [
-          { term: 'Alpha', offset: 8, line: 2 },
-          { term: 'Alpha', offset: 36, line: 3 }
+          occurrence('Alpha', 8, 2, 'quoted'),
+          occurrence('Alpha', 36, 3, 'quoted')
         ]
       },
       {
         term: 'Beta',
-        occurrences: [{ term: 'Beta', offset: 25, line: 3 }]
+        occurrences: [occurrence('Beta', 25, 3, 'quoted')]
       }
     ]);
   });
@@ -119,8 +127,8 @@ describe('buildBoldIndex', () => {
       {
         term: 'Same',
         occurrences: [
-          { term: 'Same', offset: 0, line: 1 },
-          { term: 'Same', offset: 44, line: 2 }
+          occurrence('Same', 0, 1, 'quoted'),
+          occurrence('Same', 44, 2, 'quoted')
         ]
       }
     ]);
@@ -133,27 +141,27 @@ describe('buildBoldIndex', () => {
     expect(buildBoldIndex(content, ['bold', 'italic', 'highlight', 'quoted'])).toEqual([
       {
         term: 'Bold',
-        occurrences: [{ term: 'Bold', offset: 0, line: 1 }]
+        occurrences: [occurrence('Bold', 0, 1, 'bold')]
       },
       {
         term: 'BoldTwo',
-        occurrences: [{ term: 'BoldTwo', offset: 40, line: 2 }]
+        occurrences: [occurrence('BoldTwo', 40, 2, 'bold')]
       },
       {
         term: 'Highlight',
-        occurrences: [{ term: 'Highlight', offset: 26, line: 1 }]
+        occurrences: [occurrence('Highlight', 26, 1, 'highlight')]
       },
       {
         term: 'Italic',
-        occurrences: [{ term: 'Italic', offset: 72, line: 2 }]
+        occurrences: [occurrence('Italic', 72, 2, 'italic')]
       },
       {
         term: 'Quoted',
-        occurrences: [{ term: 'Quoted', offset: 13, line: 1 }]
+        occurrences: [occurrence('Quoted', 13, 1, 'quoted')]
       },
       {
         term: 'QuotedTwo',
-        occurrences: [{ term: 'QuotedTwo', offset: 56, line: 2 }]
+        occurrences: [occurrence('QuotedTwo', 56, 2, 'quoted')]
       }
     ]);
   });

@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { buildBoldIndex, buildMarkdownIndexDocument, filterBoldIndexEntries } from '../../src/domain/markdownIndex';
+import { buildBoldIndex, buildMarkdownIndexDocument, filterBoldIndexEntries, FormatMode } from '../../src/domain/markdownIndex';
+
+// Helper function to create test occurrences with mode information
+const occurrence = (term: string, offset: number, line: number, mode: FormatMode = 'bold') => ({
+  term,
+  offset,
+  line,
+  mode
+});
 
 // This suite covers the core parsing and filtering behavior of the bold index.
 // It is intentionally kept close to the domain logic so future regressions are easy to diagnose.
@@ -8,11 +16,14 @@ describe('buildBoldIndex', () => {
     const entries = [
       {
         term: 'Alpha',
-        occurrences: [{ term: 'Alpha', offset: 0, line: 2 }, { term: 'Alpha', offset: 30, line: 4 }]
+        occurrences: [
+          occurrence('Alpha', 0, 2, 'bold'),
+          occurrence('Alpha', 30, 4, 'bold')
+        ]
       },
       {
         term: 'Beta',
-        occurrences: [{ term: 'Beta', offset: 18, line: 3 }]
+        occurrences: [occurrence('Beta', 18, 3, 'bold')]
       }
     ];
 
@@ -29,13 +40,13 @@ describe('buildBoldIndex', () => {
       {
         term: 'Alpha',
         occurrences: [
-          { term: 'Alpha', offset: 8, line: 2 },
-          { term: 'Alpha', offset: 40, line: 3 }
+          occurrence('Alpha', 8, 2, 'bold'),
+          occurrence('Alpha', 40, 3, 'bold')
         ]
       },
       {
         term: 'Beta',
-        occurrences: [{ term: 'Beta', offset: 27, line: 3 }]
+        occurrences: [occurrence('Beta', 27, 3, 'bold')]
       }
     ]);
   });
@@ -62,8 +73,8 @@ describe('buildBoldIndex', () => {
       {
         term: 'Same',
         occurrences: [
-          { term: 'Same', offset: 0, line: 1 },
-          { term: 'Same', offset: 48, line: 2 }
+          occurrence('Same', 0, 1, 'bold'),
+          occurrence('Same', 48, 2, 'bold')
         ]
       }
     ]);
@@ -73,16 +84,16 @@ describe('buildBoldIndex', () => {
   // This lets the sidebar behave naturally for note titles and search terms.
   it('filters entries by a text query ignoring case', () => {
     const entries = [
-      { term: 'Alpha', occurrences: [{ term: 'Alpha', offset: 0, line: 1 }] },
-      { term: 'Beta', occurrences: [{ term: 'Beta', offset: 10, line: 1 }] },
-      { term: 'Gamma', occurrences: [{ term: 'Gamma', offset: 20, line: 1 }] }
+      { term: 'Alpha', occurrences: [occurrence('Alpha', 0, 1, 'bold')] },
+      { term: 'Beta', occurrences: [occurrence('Beta', 10, 1, 'bold')] },
+      { term: 'Gamma', occurrences: [occurrence('Gamma', 20, 1, 'bold')] }
     ];
 
     expect(filterBoldIndexEntries(entries, 'ta')).toEqual([
-      { term: 'Beta', occurrences: [{ term: 'Beta', offset: 10, line: 1 }] }
+      { term: 'Beta', occurrences: [occurrence('Beta', 10, 1, 'bold')] }
     ]);
     expect(filterBoldIndexEntries(entries, 'GAM')).toEqual([
-      { term: 'Gamma', occurrences: [{ term: 'Gamma', offset: 20, line: 1 }] }
+      { term: 'Gamma', occurrences: [occurrence('Gamma', 20, 1, 'bold')] }
     ]);
   });
 });
