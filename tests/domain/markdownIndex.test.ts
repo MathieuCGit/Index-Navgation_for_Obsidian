@@ -59,6 +59,25 @@ describe('buildBoldIndex', () => {
     expect(buildBoldIndex(content).map((entry) => entry.term)).toEqual(['AnotherVisible', 'Visible']);
   });
 
+  // Wikilinks are not French quotes. They should not be matched as "quoted" content.
+  it('does not treat wikilinks as quoted strings', () => {
+    const content = '[[Alpha]] and [[Beta|Gamma]] and [[Delta]]\n';
+
+    expect(buildBoldIndex(content, ['quoted'])).toEqual([]);
+  });
+
+  // Markdown links inside bold text should index the displayed label, not the raw [text](url) wrapper.
+  it('strips markdown link wrappers from bold terms', () => {
+    const content = '**[Courbe de l\'oubli d\'Ebbinghaus](Courbe de l\'oubli d\'Ebbinghaus)**\n';
+
+    expect(buildBoldIndex(content)).toEqual([
+      {
+        term: 'Courbe de l\'oubli d\'Ebbinghaus',
+        occurrences: [occurrence('Courbe de l\'oubli d\'Ebbinghaus', 0, 1, 'bold')]
+      }
+    ]);
+  });
+
   // Empty content or non-emphasized content should not generate index entries.
   it('returns an empty list when no bold text exists', () => {
     expect(buildBoldIndex('plain text without emphasis')).toEqual([]);

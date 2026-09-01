@@ -169,12 +169,27 @@ function normalizeFormattedTerm(rawMatchText: string): string {
   while (normalized !== previous) {
     previous = normalized;
     normalized = normalized
-      .replace(/^(\*\*|__|==|_|\*|«)+/, '')
-      .replace(/(\*\*|__|==|_|\*|»|«)+$/, '')
+      .replace(/^(\*\*|__|==|_|\*|«|»|\!|\\)+/, '')
+      .replace(/(\*\*|__|==|_|\*|»|«|\\)+$/, '')
       .trim();
+
+    if (normalized.startsWith('[[') && normalized.endsWith(']]')) {
+      normalized = normalized.slice(2, -2).trim();
+    }
+
+    if (normalized.startsWith('[') && normalized.includes('](') && normalized.endsWith(')')) {
+      const match = normalized.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
+      if (match) {
+        normalized = match[1].trim();
+      }
+    }
+
+    if (normalized.includes('|')) {
+      normalized = normalized.split('|').at(-1) ?? normalized;
+    }
   }
 
-  return normalized;
+  return normalized.trim();
 }
 
 // Builds a sorted index of all formatted terms present in the markdown content.
