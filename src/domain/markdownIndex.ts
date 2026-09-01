@@ -15,13 +15,13 @@ export type BoldIndexEntry = {
   occurrences: BoldOccurrence[];
 };
 
-// The plugin supports three visual emphasis styles. The selected format modes determine which
+// The plugin supports four content styles. The selected format modes determine which
 // markdown patterns are considered valid candidates when building the index.
-export type FormatMode = 'bold' | 'italic' | 'highlight';
+export type FormatMode = 'bold' | 'italic' | 'highlight' | 'quoted';
 
 // A fixed list of supported emphasis modes. The sidebar exposes them as cumulative filters,
-// which means the user can combine bold, italic, and highlight entries in the same index.
-export const ALL_FORMAT_MODES: FormatMode[] = ['bold', 'italic', 'highlight'];
+// which means the user can combine bold, italic, highlight, and quoted entries in the same index.
+export const ALL_FORMAT_MODES: FormatMode[] = ['bold', 'italic', 'highlight', 'quoted'];
 
 // Determines the order in which index entries are displayed to the user.
 // - 'alphabetical': entries are sorted alphabetically (default, user-friendly natural order)
@@ -102,7 +102,8 @@ const FORMAT_PATTERNS: Record<FormatMode, RegExp[]> = {
     /(?<!\*)\*(?!\*)(.*?)\*(?!\*)/g,
     /(?<!_)_(?!_)(.*?)_(?!_)/g
   ],
-  highlight: [/==(.*?)==/g]
+  highlight: [/==(.*?)==/g],
+  quoted: [/«(.*?)»/g]
 };
 
 // Builds a sorted index of all formatted terms present in the markdown content.

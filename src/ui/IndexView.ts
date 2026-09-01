@@ -93,8 +93,8 @@ export class IndexView {
     // The format buttons are reduced to single-letter icons to match the compact visual language of
     // editing tools while still keeping the exact semantic meaning visible through the tooltip.
     ALL_FORMAT_MODES.forEach((mode) => {
-      const label = mode === 'bold' ? 'B' : mode === 'italic' ? 'I' : 'H';
-      const title = mode === 'bold' ? 'Bold' : mode === 'italic' ? 'Italic' : 'Highlight';
+      const label = mode === 'bold' ? 'B' : mode === 'italic' ? 'I' : mode === 'highlight' ? 'H' : '"';
+      const title = mode === 'bold' ? 'Bold' : mode === 'italic' ? 'Italic' : mode === 'highlight' ? 'Highlight' : 'Quoted';
       const button = modeBar.createEl('button', {
         text: label,
         cls: 'mod-cta'
