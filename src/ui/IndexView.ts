@@ -117,19 +117,31 @@ export class IndexView {
 
       modeButtons.set(mode, button);
 
-      // Toggling a filter updates the active set of modes. If all filters were removed, the plugin
-      // preserves a sensible default by re-enabling bold mode to avoid an empty and confusing index.
-      button.addEventListener('click', () => {
-        const currentModes = new Set(selectedModes);
-        if (currentModes.has(mode)) {
-          currentModes.delete(mode);
-        } else {
-          currentModes.add(mode);
-        }
+      // The filter behavior matches file explorers: regular click selects exclusively,
+      // Ctrl+Click (Cmd+Click on macOS) allows multiple selections.
+      // This is consistent with Windows Explorer, Finder, and Linux file managers.
+      button.addEventListener('click', (event: MouseEvent) => {
+        let nextModes: FormatMode[];
 
-        const nextModes = [...currentModes];
-        if (nextModes.length === 0) {
-          nextModes.push('bold');
+        // Ctrl+Click (Windows/Linux) or Cmd+Click (macOS) allows cumulative filtering
+        const isMultiSelect = event.ctrlKey || event.metaKey;
+
+        if (isMultiSelect) {
+          // Toggle the mode on/off while keeping other selections
+          const currentModes = new Set(selectedModes);
+          if (currentModes.has(mode)) {
+            currentModes.delete(mode);
+          } else {
+            currentModes.add(mode);
+          }
+
+          nextModes = [...currentModes];
+          if (nextModes.length === 0) {
+            nextModes.push('bold');
+          }
+        } else {
+          // Regular click: make this mode the only active mode (exclusive filtering)
+          nextModes = [mode];
         }
 
         modeButtons.forEach((btn, key) => {
