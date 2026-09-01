@@ -92,6 +92,7 @@ export class IndexView {
 
     // The format buttons are reduced to single-letter icons to match the compact visual language of
     // editing tools while still keeping the exact semantic meaning visible through the tooltip.
+    // Icons: B = Bold, I = Italic, H = Highlight, " = Quoted text between « and »
     ALL_FORMAT_MODES.forEach((mode) => {
       const label = mode === 'bold' ? 'B' : mode === 'italic' ? 'I' : mode === 'highlight' ? 'H' : '"';
       const title = mode === 'bold' ? 'Bold' : mode === 'italic' ? 'Italic' : mode === 'highlight' ? 'Highlight' : 'Quoted';
@@ -101,6 +102,9 @@ export class IndexView {
       });
       button.title = title;
 
+      // Visual indicators for the active state:
+      // - Active: full opacity (1.0) with accent border
+      // - Inactive: reduced opacity (0.6) with dimmed border
       const isActive = selectedModes.includes(mode);
       button.setAttribute('aria-pressed', String(isActive));
       button.style.opacity = isActive ? '1' : '0.6';
@@ -109,48 +113,78 @@ export class IndexView {
       button.style.width = '32px';
       button.style.height = '32px';
       button.style.padding = '0';
+      // Bold text gets heavier font weight, italic text gets italic style
       button.style.fontWeight = mode === 'bold' ? '700' : '500';
       button.style.fontStyle = mode === 'italic' ? 'italic' : 'normal';
+      // Highlight button uses the theme's highlight background color when active
       button.style.backgroundColor = mode === 'highlight' && isActive ? 'var(--text-highlight-bg)' : undefined;
       button.style.color = mode === 'highlight' ? 'var(--text-normal)' : undefined;
       button.style.fontSize = '14px';
 
       modeButtons.set(mode, button);
 
-      // The filter behavior matches file explorers: regular click selects exclusively,
-      // Ctrl+Click (Cmd+Click on macOS) allows multiple selections.
-      // This is consistent with Windows Explorer, Finder, and Linux file managers.
+      // Filter selection behavior mimics file explorers for familiarity:
+      // - Regular click: Makes this filter the ONLY active filter (exclusive single-select mode)
+      // - Ctrl+Click (Windows/Linux) or Cmd+Click (macOS): Toggles this filter while keeping others selected
+      //
+      // Example scenarios:
+      // 1. User selects B, I, H → clicks on B → only B is selected
+      // 2. User selects only B → Ctrl+clicks on H → both B and H are selected
+      // 3. User selects B and H → Ctrl+clicks on B → only H remains selected
+      // 4. User selects only B → Ctrl+clicks on B → system default: reverts to B (prevents empty selection)
+      //
+      // This UX pattern is consistent with:
+      // - Windows Explorer file selection
+      // - macOS Finder file selection
+      // - Linux file managers (Nautilus, Dolphin, Thunar)
       button.addEventListener('click', (event: MouseEvent) => {
-        let nextModes: FormatMode[];
-
-        // Ctrl+Click (Windows/Linux) or Cmd+Click (macOS) allows cumulative filtering
+        // Determine if user is holding a modifier key for multi-select
+        // event.ctrlKey: Windows/Linux Ctrl key
+        // event.metaKey: macOS Cmd key (⌘)
         const isMultiSelect = event.ctrlKey || event.metaKey;
 
+        let nextModes: FormatMode[];
+
         if (isMultiSelect) {
-          // Toggle the mode on/off while keeping other selections
+          // MULTI-SELECT MODE (Ctrl/Cmd+Click):
+          // Toggle the clicked mode while preserving the state of all other modes.
+          // This allows users to build complex filter combinations.
           const currentModes = new Set(selectedModes);
+          
           if (currentModes.has(mode)) {
+            // Mode is already active → remove it
             currentModes.delete(mode);
           } else {
+            // Mode is inactive → add it
             currentModes.add(mode);
           }
 
           nextModes = [...currentModes];
+          
+          // Safety mechanism: if user removes all filters, default back to bold.
+          // This prevents a confusing empty state and ensures the index always shows something.
           if (nextModes.length === 0) {
             nextModes.push('bold');
           }
         } else {
-          // Regular click: make this mode the only active mode (exclusive filtering)
+          // SINGLE-SELECT MODE (Regular Click):
+          // Make this mode the ONLY active filter. This is the default, intuitive behavior.
+          // All other filters are deactivated, providing a clean focus on one filter type.
           nextModes = [mode];
         }
 
+        // Update visual appearance of all filter buttons to reflect the new selection state.
+        // This creates immediate visual feedback so users see their selection changes instantly.
         modeButtons.forEach((btn, key) => {
           const active = nextModes.includes(key);
           btn.setAttribute('aria-pressed', String(active));
+          // Active buttons are fully opaque with an accent border
           btn.style.opacity = active ? '1' : '0.6';
+          // Inactive buttons are semi-transparent with a dimmed border
           btn.style.border = active ? '1px solid var(--interactive-accent)' : '1px solid var(--background-modifier-border)';
         });
 
+        // Notify the controller of the mode change so it can re-render the index with the new filters
         onModeChange?.(nextModes);
       });
     });
