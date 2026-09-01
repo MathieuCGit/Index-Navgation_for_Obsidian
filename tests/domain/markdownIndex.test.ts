@@ -51,12 +51,33 @@ describe('buildBoldIndex', () => {
     ]);
   });
 
-  // Markdown code fences and inline code snippets should never appear in the bold index.
-  // Otherwise the UI would show false positives from the code itself instead of the note content.
-  it('ignores bold terms inside code blocks and inline code', () => {
+  // Inline code should never appear in the index, but fenced blocks are part of the note content and
+  // must still be indexed when they contain emphasized terms.
+  it('ignores bold terms inside inline code while keeping fenced blocks searchable', () => {
     const content = '**Visible**\n```\n**Ignored**\n```\n~~~\n**IgnoredToo**\n~~~\n`**Inline**`\n**AnotherVisible**\n';
 
-    expect(buildBoldIndex(content).map((entry) => entry.term)).toEqual(['AnotherVisible', 'Visible']);
+    expect(buildBoldIndex(content).map((entry) => entry.term)).toEqual(['AnotherVisible', 'Ignored', 'IgnoredToo', 'Visible']);
+  });
+
+  // Fenced prompt blocks still contain meaningful text for the lexical index, even when they are inside a code fence.
+  it('indexes bold text inside fenced prompt blocks', () => {
+    const content = '```\n**Objectif:** Rédiger une **analyse approfondie** du sujet.\n**Format:** Tu ne mettras pas de titre en gras.\n```\n**Visible**\n';
+
+    expect(buildBoldIndex(content).map((entry) => entry.term)).toEqual(['analyse approfondie', 'Format:', 'Objectif:', 'Visible']);
+  });
+
+  // Language-tagged fences are still document content and must be indexed when they contain emphasized terms.
+  it('indexes bold text inside language-tagged fenced blocks', () => {
+    const content = '```markdown\n**Ignored**\n``` \n**Visible**\n';
+
+    expect(buildBoldIndex(content).map((entry) => entry.term)).toEqual(['Ignored', 'Visible']);
+  });
+
+  // The real prompt file uses a fenced markdown block at the top; its formatted instructions should still be indexed.
+  it('indexes formatting inside the attached markdown prompt block', () => {
+    const content = ['```markdown', '**Objectif:** Rédiger une **analyse approfondie** du sujet.', '', '**Format:** Tu ne mettras pas de titre en gras.', '```', '**Visible**', ''].join('\n');
+
+    expect(buildBoldIndex(content).map((entry) => entry.term)).toEqual(['analyse approfondie', 'Format:', 'Objectif:', 'Visible']);
   });
 
   // Wikilinks are not French quotes. They should not be matched as "quoted" content.

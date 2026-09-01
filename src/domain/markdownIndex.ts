@@ -110,14 +110,10 @@ export function buildMarkdownIndexDocument(title: string, entries: BoldIndexEntr
   return `# Index lexical - ${title}\n\n${content}\n`;
 }
 
-// Markdown code fences and inline code should never appear in the lexical index because they are
-// technical artifacts, not concept markers. These patterns are used to define regions that must
-// be ignored while scanning the current file.
-const CODE_BLOCK_PATTERNS = [
-  /```[\s\S]*?```/g,
-  /~~~[\s\S]*?~~~/g,
-  /`[^`]*`/g
-];
+// Inline code should never appear in the lexical index because it is technical markup rather than
+// document content. We intentionally do not filter fenced blocks: a prompt or example stored in a
+// fenced section is still part of the user's note and may contain meaningful index terms.
+const INLINE_CODE_PATTERN = /`[^`\n]*`/g;
 
 // Regex rules used to detect the supported emphasis styles in a note.
 // Each entry is generic enough to work on plain markdown while remaining compatible with the
@@ -197,15 +193,13 @@ function normalizeFormattedTerm(rawMatchText: string): string {
 // and returns a stable alphabetical structure that the sidebar UI can render and the export
 // feature can write to a markdown file.
 export function buildBoldIndex(content: string, modes: FormatMode[] = ['bold']): BoldIndexEntry[] {
-  // Ignore ranges are computed in advance so we can cheaply reject matches that belong to code
-  // snippets or inline code blocks. This protects the index from obvious false positives.
+  // Ignore ranges are computed in advance so we can cheaply reject matches that belong to inline
+  // code snippets, while leaving fenced blocks searchable as part of the note content.
   const ignoreRanges: [number, number][] = [];
 
-  for (const pattern of CODE_BLOCK_PATTERNS) {
-    for (const match of content.matchAll(pattern)) {
-      if (typeof match.index === 'number') {
-        ignoreRanges.push([match.index, match.index + match[0].length]);
-      }
+  for (const match of content.matchAll(INLINE_CODE_PATTERN)) {
+    if (typeof match.index === 'number') {
+      ignoreRanges.push([match.index, match.index + match[0].length]);
     }
   }
 
