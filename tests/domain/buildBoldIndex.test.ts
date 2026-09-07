@@ -32,12 +32,12 @@ describe('buildBoldIndex', () => {
     ]);
   });
 
-  // Some bold markers may appear in fenced code blocks or inline code snippets.
-  // These should be ignored, otherwise the index would report false positives from code examples.
-  it('ignores bold terms inside code blocks and inline code', () => {
+  // Inline code should be ignored, while fenced blocks remain searchable because they can contain
+  // meaningful prompt or document content.
+  it('ignores bold terms inside inline code while keeping fenced blocks searchable', () => {
     const content = '**Visible**\n```\n**Ignored**\n```\n~~~\n**IgnoredToo**\n~~~\n`**Inline**`\n**AnotherVisible**\n';
 
-    expect(buildBoldIndex(content).map((entry) => entry.term)).toEqual(['AnotherVisible', 'Visible']);
+    expect(buildBoldIndex(content).map((entry) => entry.term)).toEqual(['AnotherVisible', 'Ignored', 'IgnoredToo', 'Visible']);
   });
 
   // If the file contains no markdown emphasis at all, the parser should return an empty index.
@@ -112,11 +112,11 @@ describe('buildBoldIndex', () => {
     ]);
   });
 
-  // Quoted text inside code blocks should be ignored to avoid false positives.
-  it('ignores quoted terms inside code blocks and inline code', () => {
+  // Inline quoted text should be ignored, while fenced quoted text remains searchable.
+  it('ignores quoted terms inside inline code while keeping fenced blocks searchable', () => {
     const content = '«Visible»\n```\n«Ignored»\n```\n~~~\n«IgnoredToo»\n~~~\n`«Inline»`\n«AnotherVisible»\n';
 
-    expect(buildBoldIndex(content, ['quoted']).map((entry) => entry.term)).toEqual(['AnotherVisible', 'Visible']);
+    expect(buildBoldIndex(content, ['quoted']).map((entry) => entry.term)).toEqual(['AnotherVisible', 'Ignored', 'IgnoredToo', 'Visible']);
   });
 
   // Multiple quoted terms on the same line should not create duplicate line references.
