@@ -45,52 +45,34 @@ export class IndexView {
     onSortChange?: IndexSortChangeCallback
   ): void {
     container.empty();
-    container.style.display = 'flex';
-    container.style.flexDirection = 'column';
-    container.style.height = '100%';
-    container.style.minHeight = '0';
+    // The root class keeps all layout rules in the stylesheet and leaves this method responsible
+    // only for constructing the view and coordinating its interactions.
+    container.classList.add('bold-index-view');
 
     container.createEl('h4', { text: title });
 
     // The controls are grouped in one compact toolbar so the sidebar uses space efficiently while
     // keeping both the format filters and export actions visible without requiring multiple rows.
     const toolbar = container.createEl('div', { cls: 'bold-index-toolbar' });
-    toolbar.style.display = 'flex';
-    toolbar.style.alignItems = 'center';
-    toolbar.style.justifyContent = 'space-between';
-    toolbar.style.gap = '6px';
-    toolbar.style.marginBottom = '8px';
 
     // The mode toggles are cumulative: the user can enable or disable any combination of bold,
     // italic, and highlight. This is necessary because the parser supports multiple markdown
     // emphasis styles at the same time and the panel should reflect that behavior directly.
     const modeBar = toolbar.createEl('div', { cls: 'bold-index-mode-bar' });
-    modeBar.style.display = 'flex';
-    modeBar.style.gap = '6px';
-    modeBar.style.flexWrap = 'wrap';
 
     const actionsBar = toolbar.createEl('div', { cls: 'bold-index-actions-bar' });
-    actionsBar.style.display = 'flex';
-    actionsBar.style.alignItems = 'center';
-    actionsBar.style.gap = '6px';
 
     // These action buttons are intentionally compact because they are secondary controls compared to
     // the main filter toggles. Keeping them small leaves more space for the actual index list and the
     // search field while still making the export actions visible when needed.
-    const exportButton = actionsBar.createEl('button', { text: 'Export' });
+    const exportButton = actionsBar.createEl('button', { text: 'Export', cls: 'bold-index-action-button' });
     exportButton.type = 'button';
     exportButton.title = 'Export to Markdown';
-    exportButton.style.minWidth = '52px';
-    exportButton.style.height = '28px';
-    exportButton.style.padding = '0 8px';
     exportButton.addEventListener('click', () => onExport?.());
 
-    const openExportButton = actionsBar.createEl('button', { text: 'Open' });
+    const openExportButton = actionsBar.createEl('button', { text: 'Open', cls: 'bold-index-action-button' });
     openExportButton.type = 'button';
     openExportButton.title = 'Open exported file';
-    openExportButton.style.minWidth = '52px';
-    openExportButton.style.height = '28px';
-    openExportButton.style.padding = '0 8px';
     openExportButton.addEventListener('click', () => onOpenExport?.());
 
     const modeButtons = new Map<FormatMode, any>();
@@ -103,7 +85,7 @@ export class IndexView {
       const title = mode === 'bold' ? 'Bold' : mode === 'italic' ? 'Italic' : mode === 'highlight' ? 'Highlight' : 'Quoted';
       const button = modeBar.createEl('button', {
         text: label,
-        cls: 'mod-cta'
+        cls: `mod-cta bold-index-mode-button bold-index-mode-${mode}`
       });
       button.title = title;
 
@@ -112,19 +94,9 @@ export class IndexView {
       // - Inactive: reduced opacity (0.6) with dimmed border
       const isActive = selectedModes.includes(mode);
       button.setAttribute('aria-pressed', String(isActive));
-      button.style.opacity = isActive ? '1' : '0.6';
-      button.style.border = isActive ? '1px solid var(--interactive-accent)' : '1px solid var(--background-modifier-border)';
-      button.style.minWidth = '32px';
-      button.style.width = '32px';
-      button.style.height = '32px';
-      button.style.padding = '0';
-      // Bold text gets heavier font weight, italic text gets italic style
-      button.style.fontWeight = mode === 'bold' ? '700' : '500';
-      button.style.fontStyle = mode === 'italic' ? 'italic' : 'normal';
-      // Highlight button uses the theme's highlight background color when active
-      button.style.backgroundColor = mode === 'highlight' && isActive ? 'var(--text-highlight-bg)' : undefined;
-      button.style.color = mode === 'highlight' ? 'var(--text-normal)' : undefined;
-      button.style.fontSize = '14px';
+      // CSS owns the visual representation of the state, allowing the same markup to adapt to
+      // light and dark Obsidian themes without inline style assignments.
+      button.classList.toggle('is-active', isActive);
 
       modeButtons.set(mode, button);
 
@@ -183,10 +155,8 @@ export class IndexView {
         modeButtons.forEach((btn, key) => {
           const active = nextModes.includes(key);
           btn.setAttribute('aria-pressed', String(active));
-          // Active buttons are fully opaque with an accent border
-          btn.style.opacity = active ? '1' : '0.6';
-          // Inactive buttons are semi-transparent with a dimmed border
-          btn.style.border = active ? '1px solid var(--interactive-accent)' : '1px solid var(--background-modifier-border)';
+          // Keep the ARIA state and the CSS state synchronized after every selection change.
+          btn.classList.toggle('is-active', active);
         });
 
         // Notify the controller of the mode change so it can re-render the index with the new filters
@@ -198,39 +168,17 @@ export class IndexView {
     // This is placed after the format mode buttons (B, I, H) to keep related controls grouped together.
     // The sort button displays the current sort mode and opens a dropdown menu with all available options.
     const sortButtonContainer = modeBar.createEl('div', { cls: 'bold-index-sort-button-container' });
-    sortButtonContainer.style.position = 'relative';
-    sortButtonContainer.style.display = 'flex';
-    sortButtonContainer.style.alignItems = 'center';
 
     const sortButton = sortButtonContainer.createEl('button', {
       text: selectedSort === 'alphabetical' ? 'A↓' : 'L↓',
-      cls: 'mod-cta'
+      cls: 'mod-cta bold-index-sort-button'
     });
     sortButton.type = 'button';
     sortButton.title = selectedSort === 'alphabetical' ? 'Sort: Alphabetical' : 'Sort: By Line';
-    sortButton.style.minWidth = '32px';
-    sortButton.style.width = '32px';
-    sortButton.style.height = '32px';
-    sortButton.style.padding = '0';
-    sortButton.style.border = '1px solid var(--interactive-accent)';
-    sortButton.style.fontSize = '14px';
-    sortButton.style.fontWeight = '500';
-    sortButton.style.zIndex = '1';
 
     // The dropdown menu is positioned absolutely relative to the sort button container.
     // It remains hidden until the user clicks the button, then is toggled on/off with each click.
     const sortMenu = sortButtonContainer.createEl('div', { cls: 'bold-index-sort-menu' });
-    sortMenu.style.position = 'absolute';
-    sortMenu.style.top = '100%';
-    sortMenu.style.left = '0';
-    sortMenu.style.marginTop = '4px';
-    sortMenu.style.backgroundColor = 'var(--background-secondary)';
-    sortMenu.style.border = '1px solid var(--background-modifier-border)';
-    sortMenu.style.borderRadius = '4px';
-    sortMenu.style.minWidth = '150px';
-    sortMenu.style.zIndex = '1000';
-    sortMenu.style.display = 'none';
-    sortMenu.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.15)';
 
     // Create menu items for each available sort mode.
     // Each item is selectable and the currently active mode is visually highlighted.
@@ -239,31 +187,19 @@ export class IndexView {
     ALL_SORT_MODES.forEach((mode) => {
       const label = mode === 'alphabetical' ? 'Alphabetical (A↓)' : 'By Line (L↓)';
       const item = sortMenu.createEl('div', { text: label, cls: 'bold-index-sort-menu-item' });
-      item.style.padding = '8px 12px';
-      item.style.cursor = 'pointer';
-      item.style.fontSize = '13px';
-      item.style.userSelect = 'none';
 
       // Highlight the currently selected sort mode.
       if (mode === selectedSort) {
-        item.style.backgroundColor = 'var(--background-modifier-active)';
-        item.style.color = 'var(--text-accent)';
-      } else {
-        item.style.backgroundColor = 'transparent';
-        item.style.color = 'var(--text-normal)';
+        item.classList.add('is-active');
       }
 
       // Add hover effect for better UX.
       item.addEventListener('mouseenter', () => {
-        if (mode !== selectedSort) {
-          item.style.backgroundColor = 'var(--background-modifier-hover)';
-        }
+        item.classList.add('is-hovered');
       });
 
       item.addEventListener('mouseleave', () => {
-        if (mode !== selectedSort) {
-          item.style.backgroundColor = 'transparent';
-        }
+        item.classList.remove('is-hovered');
       });
 
       // When a menu item is clicked, update the sort mode, refresh the UI, and close the menu.
@@ -274,17 +210,17 @@ export class IndexView {
 
         // Update visual appearance of all menu items.
         sortModeItems.forEach((menuItem, key) => {
+          // The selected item keeps its active class after the menu is refreshed; all other items
+          // return to the neutral state and receive hover feedback only while pointed at.
           if (key === mode) {
-            menuItem.style.backgroundColor = 'var(--background-modifier-active)';
-            menuItem.style.color = 'var(--text-accent)';
+            menuItem.classList.add('is-active');
           } else {
-            menuItem.style.backgroundColor = 'transparent';
-            menuItem.style.color = 'var(--text-normal)';
+            menuItem.classList.remove('is-active');
           }
         });
 
         // Close the menu.
-        sortMenu.style.display = 'none';
+        sortMenu.classList.remove('is-visible');
 
         // Trigger the callback to notify the controller of the sort mode change.
         onSortChange?.(mode);
@@ -295,14 +231,14 @@ export class IndexView {
 
     // Toggle the sort menu visibility when the sort button is clicked.
     sortButton.addEventListener('click', () => {
-      const isVisible = sortMenu.style.display === 'block';
-      sortMenu.style.display = isVisible ? 'none' : 'block';
+      // A class toggle keeps visibility declarative and avoids mutating the element's style object.
+      sortMenu.classList.toggle('is-visible');
     });
 
     // Close the sort menu when clicking outside of it (standard dropdown behavior).
     document.addEventListener('click', (event: any) => {
       if (!sortButtonContainer.contains(event.target)) {
-        sortMenu.style.display = 'none';
+        sortMenu.classList.remove('is-visible');
       }
     });
 
@@ -313,20 +249,12 @@ export class IndexView {
       cls: 'bold-index-search-input',
       placeholder: 'Filtrer...'
     });
-    searchInput.style.width = '100%';
-    searchInput.style.boxSizing = 'border-box';
-    searchInput.style.marginBottom = '8px';
 
     // The result container is kept separate so the code can rerender only the list when the query
     // changes instead of recreating a large part of the whole panel each time.
     // We keep the controls fixed at the top and let only this scrollable area move, which makes the
     // sidebar easier to browse when the result list becomes long.
-    const resultsContainer = container.createEl('div');
-    resultsContainer.style.flex = '1 1 auto';
-    resultsContainer.style.minHeight = '0';
-    resultsContainer.style.overflowY = 'auto';
-    resultsContainer.style.overflowX = 'hidden';
-    resultsContainer.style.paddingBottom = '8px';
+    const resultsContainer = container.createEl('div', { cls: 'bold-index-results' });
 
     const renderEntries = (query: string): void => {
       // First filter entries by selected modes (AND logic for combined formatting).
@@ -347,18 +275,10 @@ export class IndexView {
       }
 
       const list = resultsContainer.createEl('ul', { cls: 'bold-index-list' });
-      list.style.listStyle = 'none';
-      list.style.paddingLeft = '0';
 
       // Render each sorted and filtered entry with all its occurrences.
       sortedEntries.forEach((entry) => {
-        const item = list.createEl('li');
-        item.style.marginBottom = '6px';
-        // Use flex layout to allow proper line wrapping of terms and line numbers
-        item.style.display = 'flex';
-        item.style.flexWrap = 'wrap';
-        item.style.alignItems = 'flex-start';
-        item.style.gap = '8px';
+        const item = list.createEl('li', { cls: 'bold-index-item' });
 
         const term = item.createEl('span', { text: entry.term, cls: 'bold-index-term' });
         // Determine the formatting styles based on the modes of the first occurrence.
@@ -374,10 +294,12 @@ export class IndexView {
         let hasHighlight = false;
         
         for (const mode of firstModes) {
+          // Formatting modes are additive: separate classes preserve combinations such as bold plus
+          // italic, while quoted text intentionally keeps the normal text appearance.
           if (mode === 'bold') {
-            term.style.fontWeight = '700';
+            term.classList.add('bold-index-term-bold');
           } else if (mode === 'italic') {
-            term.style.fontStyle = 'italic';
+            term.classList.add('bold-index-term-italic');
           } else if (mode === 'highlight') {
             hasHighlight = true;
           }
@@ -386,13 +308,10 @@ export class IndexView {
         
         // Apply highlight styling if present
         if (hasHighlight) {
-          term.style.backgroundColor = 'var(--text-highlight-bg)';
-          term.style.padding = '0 2px';
+          term.classList.add('bold-index-term-highlight');
         }
         
         // Allow term to wrap to next line if sidebar is narrow
-        term.style.wordBreak = 'break-word';
-        term.style.overflowWrap = 'break-word';
 
         // Line numbers container using flex with wrapping for responsive multi-line display.
         // This container dynamically wraps line numbers based on available sidebar width:
@@ -400,12 +319,6 @@ export class IndexView {
         // - When sidebar is narrow: line numbers wrap to multiple lines
         // - Fully responsive without fixed widths or media queries
         const lines = item.createEl('div', { cls: 'bold-index-lines' });
-        lines.style.display = 'flex';
-        lines.style.flexWrap = 'wrap';
-        lines.style.alignItems = 'center';
-        lines.style.gap = '6px';
-        lines.style.flex = '1';
-        lines.style.minWidth = '0';
 
         entry.occurrences.forEach((occurrence, index) => {
           const line = lines.createEl('span', {
@@ -413,10 +326,6 @@ export class IndexView {
             cls: 'bold-index-line'
           });
 
-          line.style.cursor = 'pointer';
-          line.style.color = 'var(--text-accent)';
-          line.style.textDecoration = 'underline';
-          line.style.whiteSpace = 'nowrap';
 
           // Each line number acts as a clickable anchor in the note. When selected, it jumps to the
           // exact text range matching the emphasis pattern in the editor, which makes the sidebar
@@ -430,9 +339,7 @@ export class IndexView {
           // Add separator commas between line numbers (but not after the last one)
           if (index < entry.occurrences.length - 1) {
             const separator = lines.createEl('span', { text: ',' });
-            separator.style.color = 'var(--text-normal)';
-            separator.style.whiteSpace = 'nowrap';
-            separator.style.lineHeight = '1';
+            separator.classList.add('bold-index-line-separator');
           }
         });
       });

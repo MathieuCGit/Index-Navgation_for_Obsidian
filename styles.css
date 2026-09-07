@@ -1,0 +1,206 @@
+/* Root layout: the view fills the sidebar and controls the vertical flow. */
+.bold-index-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+/* Shared flex primitives keep toolbar controls and line references aligned. */
+.bold-index-toolbar,
+.bold-index-mode-bar,
+.bold-index-actions-bar,
+.bold-index-lines {
+  display: flex;
+}
+
+/* The toolbar separates filters from export actions while remaining compact. */
+.bold-index-toolbar {
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+/* Filters wrap naturally when the sidebar becomes narrow. */
+.bold-index-mode-bar {
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* Export controls stay grouped and vertically centered beside the filters. */
+.bold-index-actions-bar {
+  align-items: center;
+  gap: 6px;
+}
+
+/* Fixed action dimensions prevent the toolbar from jumping during refreshes. */
+.bold-index-action-button {
+  min-width: 52px;
+  height: 28px;
+  padding: 0 8px;
+}
+
+/* Mode and sort controls share a stable compact geometry. */
+.bold-index-mode-button,
+.bold-index-sort-button {
+  min-width: 32px;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* Inactive filters are subdued until the active state is applied. */
+.bold-index-mode-button {
+  opacity: 0.6;
+  border: 1px solid var(--background-modifier-border);
+}
+
+/* The active border and opacity make the selected filter immediately recognizable. */
+.bold-index-mode-button.is-active {
+  opacity: 1;
+  border-color: var(--interactive-accent);
+}
+
+/* These classes mirror the formatting semantics extracted from markdown. */
+.bold-index-mode-bold,
+.bold-index-term-bold {
+  font-weight: 700;
+}
+
+.bold-index-mode-italic,
+.bold-index-term-italic {
+  font-style: italic;
+}
+
+/* Highlight mode uses an Obsidian theme variable rather than a hard-coded color. */
+.bold-index-mode-highlight.is-active,
+.bold-index-term-highlight {
+  background-color: var(--text-highlight-bg);
+}
+
+.bold-index-mode-highlight {
+  color: var(--text-normal);
+}
+
+/* The menu is positioned relative to its compact trigger button. */
+.bold-index-sort-button-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+/* The sort trigger uses the same visual language as the filter controls. */
+.bold-index-sort-button {
+  border: 1px solid var(--interactive-accent);
+  z-index: 1;
+}
+
+/* The menu floats above the result list and is hidden until explicitly opened. */
+.bold-index-sort-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  display: none;
+  min-width: 150px;
+  margin-top: 4px;
+  background-color: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+}
+
+/* Visibility is represented by a class so TypeScript never writes a static style directly. */
+.bold-index-sort-menu.is-visible {
+  display: block;
+}
+
+/* Menu items provide a comfortable target for both pointer and keyboard interaction. */
+.bold-index-sort-menu-item {
+  padding: 8px 12px;
+  color: var(--text-normal);
+  cursor: pointer;
+  font-size: 13px;
+  user-select: none;
+}
+
+/* Native hover and the temporary interaction class share the same visual feedback. */
+.bold-index-sort-menu-item:hover,
+.bold-index-sort-menu-item.is-hovered {
+  background-color: var(--background-modifier-hover);
+}
+
+/* The selected sort mode remains highlighted after the pointer leaves the menu. */
+.bold-index-sort-menu-item.is-active {
+  background-color: var(--background-modifier-active);
+  color: var(--text-accent);
+}
+
+/* The search field spans the sidebar while preserving the surrounding box model. */
+.bold-index-search-input {
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 8px;
+}
+
+/* Only the results scroll, leaving the controls visible for long notes. */
+.bold-index-results {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-bottom: 8px;
+}
+
+/* The list owns its spacing because default browser bullets are not useful here. */
+.bold-index-list {
+  list-style: none;
+  padding-left: 0;
+}
+
+/* Terms and line references wrap independently in narrow sidebars. */
+.bold-index-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+/* Long terms wrap instead of expanding the sidebar horizontally. */
+.bold-index-term {
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Small padding keeps the highlight background readable around the term. */
+.bold-index-term-highlight {
+  padding: 0 2px;
+}
+
+/* Line references form a flexible row and wrap when many occurrences are present. */
+.bold-index-lines {
+  flex: 1;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Line references behave like navigation links and retain Obsidian's accent color. */
+.bold-index-line {
+  color: var(--text-accent);
+  cursor: pointer;
+  text-decoration: underline;
+  white-space: nowrap;
+}
+
+/* Separators stay compact and visually neutral between clickable references. */
+.bold-index-line-separator {
+  color: var(--text-normal);
+  line-height: 1;
+  white-space: nowrap;
+}
