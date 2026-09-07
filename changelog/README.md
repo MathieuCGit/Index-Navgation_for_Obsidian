@@ -4,6 +4,7 @@ All notable changes to Navigation Index for Obsidian are documented in this dire
 
 ## Versions
 
+- **[v1.0.1](v1.0.1.md)** - Bug fixes for Obsidian style validation and parser test coverage
 - **[v1.0.0](v1.0.0.md)** - Initial release with full indexing, filtering, sorting, and export features
 
 ## Format

@@ -1,7 +1,7 @@
 {
   "id": "index-navigation",
   "name": "Index Navigation",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "minAppVersion": "0.15.0",
   "description": "Index interactif des mots en gras, italiques ou surlignés pour la note active dans la sidebar.",
   "author": "Mathieu CONAN",
