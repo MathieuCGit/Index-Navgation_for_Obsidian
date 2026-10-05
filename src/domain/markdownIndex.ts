@@ -114,6 +114,7 @@ export function buildMarkdownIndexDocument(title: string, entries: BoldIndexEntr
 // document content. We intentionally do not filter fenced blocks: a prompt or example stored in a
 // fenced section is still part of the user's note and may contain meaningful index terms.
 const INLINE_CODE_PATTERN = /`[^`\n]*`/g;
+const URL_PATTERN = /\b(?:[a-z][a-z\d+.-]*:\/\/|www\.)[^\s<>()]+/gi;
 
 // Regex rules used to detect the supported emphasis styles in a note.
 // Each entry is generic enough to work on plain markdown while remaining compatible with the
@@ -198,6 +199,12 @@ export function buildBoldIndex(content: string, modes: FormatMode[] = ['bold']):
   const ignoreRanges: [number, number][] = [];
 
   for (const match of content.matchAll(INLINE_CODE_PATTERN)) {
+    if (typeof match.index === 'number') {
+      ignoreRanges.push([match.index, match.index + match[0].length]);
+    }
+  }
+
+  for (const match of content.matchAll(URL_PATTERN)) {
     if (typeof match.index === 'number') {
       ignoreRanges.push([match.index, match.index + match[0].length]);
     }

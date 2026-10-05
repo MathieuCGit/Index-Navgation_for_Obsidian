@@ -99,6 +99,12 @@ describe('buildBoldIndex', () => {
     ]);
   });
 
+  it('does not treat underscores inside URLs as italic text', () => {
+    const content = 'https://example.test/foo_bar_baz\n';
+
+    expect(buildBoldIndex(content, ['italic'])).toEqual([]);
+  });
+
   // Empty content or non-emphasized content should not generate index entries.
   it('returns an empty list when no bold text exists', () => {
     expect(buildBoldIndex('plain text without emphasis')).toEqual([]);
