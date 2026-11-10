@@ -73,14 +73,14 @@ export function filterBoldIndexEntries(entries: BoldIndexEntry[], query: string)
   return entries.filter((entry) => entry.term.toLowerCase().includes(normalizedQuery));
 }
 
-// Filters entries by selected format modes using AND logic.
-// An entry is included only if it has at least one occurrence that contains ALL selected modes.
-// This enables finding terms with combined formatting like italic+quoted: _«text»_ or «_text_»
+// Filters entries by selected format modes.
+// An occurrence is included only when its complete set of formatting modes is selected. This keeps
+// combined formatting such as italic+quoted out of either individual filter.
 //
 // Examples:
-// - Selected modes: ['bold'] → includes entries with bold occurrences
-// - Selected modes: ['italic', 'quoted'] → includes entries with at least one occurrence that is both italic AND quoted
-// - Selected modes: ['bold', 'italic', 'quoted'] → requires all three modes in a single occurrence
+// - Selected modes: ['bold'] → includes bold-only occurrences
+// - Selected modes: ['italic', 'quoted'] → includes occurrences with both modes and no others
+// - Selected modes: ['bold', 'italic', 'quoted'] → requires exactly those three modes
 export function filterByFormattingModes(entries: BoldIndexEntry[], selectedModes: FormatMode[]): BoldIndexEntry[] {
   // If no modes selected (shouldn't happen due to UI logic), return all entries
   if (selectedModes.length === 0) {
@@ -88,10 +88,9 @@ export function filterByFormattingModes(entries: BoldIndexEntry[], selectedModes
   }
 
   return entries.filter((entry) => {
-    // An entry passes the filter if it has at least one occurrence that contains ALL selected modes
     return entry.occurrences.some((occurrence) => {
-      // Check if this occurrence's modes contain all selected modes (subset check)
-      return selectedModes.every((mode) => occurrence.modes.includes(mode));
+      return selectedModes.every((mode) => occurrence.modes.includes(mode))
+        && occurrence.modes.every((mode) => selectedModes.includes(mode));
     });
   });
 }
@@ -126,7 +125,7 @@ const FORMAT_PATTERNS: Record<FormatMode, RegExp[]> = {
     /(?<!_)_(?!_)(.*?)_(?!_)/g
   ],
   highlight: [/==(.*?)==/g],
-  quoted: [/«(.*?)»/g]
+  quoted: [/«(.*?)»/g, /"(.*?)"/g]
 };
 
 // Helper function to detect all formatting modes applied to a given raw match.
@@ -166,8 +165,8 @@ function normalizeFormattedTerm(rawMatchText: string): string {
   while (normalized !== previous) {
     previous = normalized;
     normalized = normalized
-      .replace(/^(\*\*|__|==|_|\*|«|»|\!|\\)+/, '')
-      .replace(/(\*\*|__|==|_|\*|»|«|\\)+$/, '')
+      .replace(/^(\*\*|__|==|_|\*|«|»|"|\!|\\)+/, '')
+      .replace(/(\*\*|__|==|_|\*|»|«|"|\\)+$/, '')
       .trim();
 
     if (normalized.startsWith('[[') && normalized.endsWith(']]')) {
@@ -213,44 +212,54 @@ export function buildBoldIndex(content: string, modes: FormatMode[] = ['bold']):
   // A helper function that answers whether a given offset lies inside one of the ignored ranges.
   const isIgnored = (pos: number) => ignoreRanges.some(([start, end]) => pos >= start && pos < end);
   const grouped = new Map<string, FormattedOccurrence[]>();
+  const formattedMatches: Array<{ mode: FormatMode; start: number; end: number; term: string; text: string }> = [];
 
-  // Process each format mode to track which modes each occurrence has.
-  // This allows detecting combined formatting like italic+quoted (_«text»_)
-  const activeModes = modes.length > 0 ? modes : ['bold'];
-
-  for (const mode of activeModes) {
-    const patterns = FORMAT_PATTERNS[mode] ?? [];
-    
-    for (const pattern of patterns) {
+  for (const mode of ALL_FORMAT_MODES) {
+    for (const pattern of FORMAT_PATTERNS[mode]) {
       pattern.lastIndex = 0;
 
       for (const match of content.matchAll(pattern)) {
         if (typeof match.index !== 'number') continue;
 
-        const offset = match.index;
-        if (isIgnored(offset)) continue;
+        const start = match.index;
+        if (isIgnored(start)) continue;
 
-        const rawMatchText = match[0];
-        const term = normalizeFormattedTerm(rawMatchText);
-        if (!term) continue;
-
-        // Detect all formatting modes that apply to the full wrapped match.
-        // Example: the raw match "_«text»_" includes both the outer underscore italics and the
-        // inner French quotes, so we must inspect the complete match instead of the stripped term.
-        const detectedModes = detectFormattingModes(rawMatchText, activeModes);
-
-        // Always include the current mode that was found via this pattern.
-        if (!detectedModes.includes(mode)) {
-          detectedModes.push(mode);
+        const text = match[0];
+        const term = normalizeFormattedTerm(text);
+        if (term) {
+          formattedMatches.push({ mode, start, end: start + text.length, term, text });
         }
-
-        // Determine the line number from the content preceding the match. This value is later
-        // used to create clickable references in the sidebar UI.
-        const line = content.slice(0, offset).split('\n').length;
-        const list = grouped.get(term) ?? [];
-        list.push({ term, offset, line, modes: [...new Set(detectedModes)] });
-        grouped.set(term, list);
       }
+    }
+  }
+
+  const activeModes: FormatMode[] = modes.length > 0 ? modes : ['bold'];
+
+  for (const mode of activeModes) {
+    for (const formattedMatch of formattedMatches.filter((candidate) => candidate.mode === mode)) {
+      const { start: offset, end, term, text: rawMatchText } = formattedMatch;
+      const detectedModes = new Set(detectFormattingModes(rawMatchText, ALL_FORMAT_MODES));
+
+      // Also detect a surrounding format when its wrapper is outside this match, as with the quoted
+      // part of _"text"_ when only the quoted parser pattern is selected.
+      for (const relatedMatch of formattedMatches) {
+        const containsMatch = relatedMatch.start <= offset && relatedMatch.end >= end;
+        const isContainedByMatch = offset <= relatedMatch.start && end >= relatedMatch.end;
+        if (relatedMatch.term === term && (containsMatch || isContainedByMatch)) {
+          detectedModes.add(relatedMatch.mode);
+        }
+      }
+
+      if (!detectedModes.has(mode)) {
+        detectedModes.add(mode);
+      }
+
+      // Determine the line number from the content preceding the match. This value is later
+      // used to create clickable references in the sidebar UI.
+      const line = content.slice(0, offset).split('\n').length;
+      const list = grouped.get(term) ?? [];
+      list.push({ term, offset, line, modes: [...detectedModes] });
+      grouped.set(term, list);
     }
   }
 

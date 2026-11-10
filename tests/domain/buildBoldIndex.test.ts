@@ -112,6 +112,26 @@ describe('buildBoldIndex', () => {
     ]);
   });
 
+  // Plain double-quoted strings should be treated the same way as French guillemets so the parser
+  // stays consistent with the user’s quoting conventions in markdown notes.
+  it('extracts plain double-quoted terms the same way as French quotes', () => {
+    const content = '# Notes\n"Alpha" is here.\n"Beta" and "Alpha" appear again.\n';
+
+    expect(buildBoldIndex(content, ['quoted'])).toEqual([
+      {
+        term: 'Alpha',
+        occurrences: [
+          occurrence('Alpha', 8, 2, 'quoted'),
+          occurrence('Alpha', 36, 3, 'quoted')
+        ]
+      },
+      {
+        term: 'Beta',
+        occurrences: [occurrence('Beta', 25, 3, 'quoted')]
+      }
+    ]);
+  });
+
   // Inline quoted text should be ignored, while fenced quoted text remains searchable.
   it('ignores quoted terms inside inline code while keeping fenced blocks searchable', () => {
     const content = '«Visible»\n```\n«Ignored»\n```\n~~~\n«IgnoredToo»\n~~~\n`«Inline»`\n«AnotherVisible»\n';

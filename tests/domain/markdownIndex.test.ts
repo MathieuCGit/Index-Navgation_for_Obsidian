@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { buildBoldIndex, buildMarkdownIndexDocument, filterBoldIndexEntries, FormatMode } from '../../src/domain/markdownIndex';
+import { buildBoldIndex, buildMarkdownIndexDocument, filterBoldIndexEntries, filterByFormattingModes, FormatMode } from '../../src/domain/markdownIndex';
 
 // Helper function to create test occurrences with modes array
-const occurrence = (term: string, offset: number, line: number, ...modes: FormatMode[]) => ({
+const occurrence = (term: string, offset: number, line: number, ...modes: FormatMode[]): {
+  term: string;
+  offset: number;
+  line: number;
+  modes: FormatMode[];
+} => ({
   term,
   offset,
   line,
@@ -141,5 +146,40 @@ describe('buildBoldIndex', () => {
     expect(filterBoldIndexEntries(entries, 'GAM')).toEqual([
       { term: 'Gamma', occurrences: [occurrence('Gamma', 20, 1, 'bold')] }
     ]);
+  });
+
+  it('hides quoted+italic matches when only the italic filter is selected', () => {
+    const entries = [
+      { term: 'Citation', occurrences: [occurrence('Citation', 0, 1, 'italic', 'quoted')] },
+      { term: 'SimpleItalic', occurrences: [occurrence('SimpleItalic', 10, 1, 'italic')] }
+    ];
+
+    expect(filterByFormattingModes(entries, ['italic'])).toEqual([
+      { term: 'SimpleItalic', occurrences: [occurrence('SimpleItalic', 10, 1, 'italic')] }
+    ]);
+
+    expect(filterByFormattingModes(entries, ['italic', 'quoted'])).toEqual([
+      { term: 'Citation', occurrences: [occurrence('Citation', 0, 1, 'italic', 'quoted')] }
+    ]);
+  });
+
+  it('shows italic-quoted terms only when both formatting filters are selected', () => {
+    const content = '_"Citation"_\n_«Citation française»_\n_Italic seul_\n"Quote seul"\n';
+    const italicEntries = buildBoldIndex(content, ['italic']);
+    const quotedEntries = buildBoldIndex(content, ['quoted']);
+    const bothEntries = buildBoldIndex(content, ['italic', 'quoted']);
+
+    expect(italicEntries.find((entry) => entry.term === 'Citation')?.occurrences[0].modes)
+      .toEqual(['italic', 'quoted']);
+    expect(filterByFormattingModes(italicEntries, ['italic']).map((entry) => entry.term))
+      .toEqual(['Italic seul']);
+
+    expect(quotedEntries.find((entry) => entry.term === 'Citation')?.occurrences[0].modes)
+      .toEqual(['quoted', 'italic']);
+    expect(filterByFormattingModes(quotedEntries, ['quoted']).map((entry) => entry.term))
+      .toEqual(['Quote seul']);
+
+    expect(filterByFormattingModes(bothEntries, ['italic', 'quoted']).map((entry) => entry.term))
+      .toEqual(['Citation', 'Citation française']);
   });
 });
