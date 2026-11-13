@@ -104,6 +104,19 @@ describe('buildBoldIndex', () => {
     ]);
   });
 
+  it('keeps highlighted text indexed when it contains a bold fragment', () => {
+    const term = "La question du pouvoir, de sa nature, de sa corruption, etc. sont réglé par l'idée, non pas de la séparation des pouvoirs, mais de la dilution du pouvoir, c'est à dire de la démocratie réelle.";
+    const content = `==La question du pouvoir, de sa nature, de sa corruption, etc. sont réglé par l'idée, non pas de la séparation des pouvoirs, mais de la **dilution du pouvoir**, c'est à dire de la démocratie réelle.==\n`;
+
+    expect(buildBoldIndex(content, ['highlight'])).toEqual([
+      {
+        term,
+        occurrences: [occurrence(term, 0, 1, 'highlight')]
+      }
+    ]);
+    expect(buildBoldIndex(content, ['bold']).map((entry) => entry.term)).toEqual(['dilution du pouvoir']);
+  });
+
   it('does not treat underscores inside URLs as italic text', () => {
     const content = 'https://example.test/foo_bar_baz\n';
 

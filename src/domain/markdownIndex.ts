@@ -146,7 +146,7 @@ function detectFormattingModes(rawMatchText: string, availableModes: FormatMode[
       // The mode is considered active if the raw text itself is wrapped by that marker pattern.
       // This works for nested cases like "_«text»_", where the outer italic markers are on the
       // complete raw match while the inner quotes are a separate nested format.
-      if (match) {
+      if (match && match.index === 0 && match[0].length === rawMatchText.length) {
         detectedModes.push(mode);
         break;
       }
@@ -185,7 +185,10 @@ function normalizeFormattedTerm(rawMatchText: string): string {
     }
   }
 
-  return normalized.trim();
+  return normalized
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/__(.*?)__/g, '$1')
+    .trim();
 }
 
 // Builds a sorted index of all formatted terms present in the markdown content.
